@@ -27,14 +27,18 @@ fn set_settings(pcm: &alsa::pcm::PCM, stereo: bool) {
 	hwp.set_rate(&CONTEXT, HZ_48K, alsa::ValueOr::Nearest).unwrap();
 	let rate = hwp.get_rate(&CONTEXT).unwrap();
 	assert_eq!(rate, HZ_48K);
-	hwp.set_format(&CONTEXT, alsa::pcm::Format::s16()).unwrap();
+	hwp.set_format(&CONTEXT, {
+		if cfg!(target_endian = "little") { 2 }
+		else if cfg!(target_endian = "big") { 3 }
+		else { unreachable!() }
+	}).unwrap();
 	hwp.set_access(&CONTEXT, alsa::pcm::Access::RWInterleaved).unwrap();
 	pcm.hw_params(&CONTEXT, &hwp).unwrap();
 	hwp.drop(&CONTEXT);
 }
 
 pub struct Speaker {
-	speaker: (i64, alsa::pcm::PCM), // TODO: call drop(), it isn't being called rn.
+	speaker: (i64, alsa::pcm::PCM),
 	speaker_buffer: Vec<i16>,
 }
 
@@ -117,8 +121,14 @@ impl Speaker {
 	}
 }
 
+impl Drop for Speaker {
+	fn drop(&mut self) {
+		self.speaker.1.drop(&CONTEXT);
+	}
+}
+
 pub struct Microphone {
-	pcm: alsa::pcm::PCM, // TODO: call drop(), it isn't being called rn.
+	pcm: alsa::pcm::PCM
 }
 
 impl Microphone {
@@ -149,5 +159,11 @@ impl Microphone {
 	/// Pull data from the microphone input.
 	pub fn update(&self, buffer: &mut [i16]) -> usize {
 		self.pcm.readi(&CONTEXT, buffer).unwrap_or(0)
+	}
+}
+
+impl Drop for Microphone {
+	fn drop(&mut self) {
+		self.pcm.drop(&CONTEXT);
 	}
 }
