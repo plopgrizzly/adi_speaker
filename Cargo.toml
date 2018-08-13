@@ -16,6 +16,14 @@
 name = "adi_speaker"
 version = "0.0.1"
 authors = ["Jeron Lau <jeron.lau@plopgrizzly.com>"]
+license = "MIT / BSL-1.0"
+documentation = "https://docs.rs/adi_speaker"
+homepage = "https://gitlab.com/plopgrizzly/adi/"
+repository = "https://github.com/plopgrizzly/adi_speaker"
+readme = "README.md"
+description = "Play sound through speakers, earbuds or headphones (platform-agnostic)."
+keywords = ["audio", "speaker", "alsa", "hardware", "player"]
+categories = ["hardware-support", "multimedia", "multimedia::audio"]
 
 [dependencies]
 libc = "0.2"

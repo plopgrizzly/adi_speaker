@@ -3,6 +3,8 @@
 // Version 1.0.  (See accompanying file LICENSE_1_0.txt or copy at
 // https://www.boost.org/LICENSE_1_0.txt)
 
+//! Play sound through speakers, earbuds or headphones (platform-agnostic).
+
 extern crate libc;
 extern crate nix;
 #[macro_use]
@@ -10,43 +12,41 @@ extern crate lazy_static;
 
 mod alsa;
 
+const HZ_48K: u32 = 48_000;
+
 lazy_static! {
 	static ref CONTEXT: alsa::Context = {
 		alsa::Context::new()
 	};
 }
 
-fn set_settings(pcm: &alsa::pcm::PCM) {
-	// Set hardware parameters: 44100 Hz / Mono / 16 bit
+fn set_settings(pcm: &alsa::pcm::PCM, stereo: bool) {
+	// Set hardware parameters: 48000 Hz / Mono / 16 bit
 	let hwp = alsa::pcm::HwParams::any(&CONTEXT, pcm).unwrap();
-	hwp.set_channels(&CONTEXT, 1).unwrap();
-	hwp.set_rate(&CONTEXT, 48000, alsa::ValueOr::Nearest).unwrap();
+	hwp.set_channels(&CONTEXT, if stereo { 2 } else { 1 }).unwrap();
+	hwp.set_rate(&CONTEXT, HZ_48K, alsa::ValueOr::Nearest).unwrap();
 	let rate = hwp.get_rate(&CONTEXT).unwrap();
-//	println!("RATE: {}", rate);
-	assert_eq!(rate, 48_000);
+	assert_eq!(rate, HZ_48K);
 	hwp.set_format(&CONTEXT, alsa::pcm::Format::s16()).unwrap();
 	hwp.set_access(&CONTEXT, alsa::pcm::Access::RWInterleaved).unwrap();
 	pcm.hw_params(&CONTEXT, &hwp).unwrap();
 	hwp.drop(&CONTEXT);
 }
 
-pub struct AudioManager {
-//	#[cfg(feature = "speaker")]
+pub struct Speaker {
 	speaker: (i64, alsa::pcm::PCM), // TODO: call drop(), it isn't being called rn.
-//	#[cfg(feature = "speaker")]
 	speaker_buffer: Vec<i16>,
-//	#[cfg(feature = "microphone")]
-	microphone: alsa::pcm::PCM, // TODO: call drop(), it isn't being called rn.
 }
 
-impl AudioManager {
-	/// Create a new `AudioManager`.
-	pub fn new() -> Self {
-//		#[cfg(feature = "speaker")]
+impl Speaker {
+	/// Connect to a new Speaker.
+	pub fn new(speaker: u16, stereo: bool) -> Option<Self> {
+		if speaker != 0 { return None }
+
 		let (speaker, speaker_buffer) = {
 			let pcm = alsa::pcm::PCM::new(&CONTEXT, "default",
 				alsa::Direction::Playback).unwrap();
-			set_settings(&pcm);
+			set_settings(&pcm, stereo);
 			let mut speaker_max_latency;
 			(({
 				let hwp = pcm.hw_params_current(&CONTEXT).unwrap();
@@ -65,43 +65,32 @@ impl AudioManager {
 			}, pcm), vec![0i16; speaker_max_latency])
 		};
 
-//		#[cfg(feature = "microphone")]
-		let microphone = {
-			let pcm = alsa::pcm::PCM::new(&CONTEXT, "plughw:0,0",
-				alsa::Direction::Capture).unwrap();
-			set_settings(&pcm);
-			{
-				let hwp = pcm.hw_params_current(&CONTEXT).unwrap();
-				println!("CC: {}", hwp.get_channels(&CONTEXT).unwrap());
-				println!("CR: {}", hwp.get_rate(&CONTEXT).unwrap());
-				hwp.drop(&CONTEXT);
-			}
-			pcm
-		};
+		speaker.1.prepare(&CONTEXT);
 
-//		#[cfg(feature = "speaker")]
-		{
-			speaker.1.prepare(&CONTEXT);
-		}
-
-//		#[cfg(feature = "microphone")]
-		{
-			microphone.start(&CONTEXT);
-		}
-
-		let am = AudioManager {
-//			#[cfg(feature = "speaker")]
-			speaker,
-//			#[cfg(feature = "speaker")]
-			speaker_buffer,
-//			#[cfg(feature = "microphone")]
-			microphone,
-		};
-
-		am
+		Some(Self { speaker, speaker_buffer })
 	}
 
-//	#[cfg(feature = "speaker")]
+	/// Get the number of connected speakers.
+	pub fn num(&self) -> u16 {
+		1
+	}
+
+	/// Generate & push data to speaker output.  When a new sample is
+	/// needed, closure `generator` will be called.  This should be called
+	/// in a loop.
+	pub fn update(&mut self, generator: &mut FnMut() -> i16) {
+		let left = self.left() as usize;
+		let write = if left < self.speaker_buffer.len() {
+			self.speaker_buffer.len() - left
+		} else { 0 };
+
+		for i in 0..write {
+			self.speaker_buffer[i] = generator();
+		}
+
+		self.push(&self.speaker_buffer[..write]);
+	}
+
 	/// Push data to the speaker output.
 	fn push(&self, buffer: &[i16]) {
 		if self.speaker.1.writei(&CONTEXT, buffer).unwrap_or_else(|_| {
@@ -122,32 +111,43 @@ impl AudioManager {
 		}
 	}
 
-	/// Generate & push data to speaker output.  When a new sample is
-	/// needed, closure `generator` will be called.  This should be called
-	/// in a loop.
-//	#[cfg(feature = "speaker")]
-	pub fn play(&mut self, generator: &mut FnMut() -> i16) {
-		let left = self.left() as usize;
-		let write = if left < self.speaker_buffer.len() {
-			self.speaker_buffer.len() - left
-		} else { 0 };
-
-		for i in 0..write {
-			self.speaker_buffer[i] = generator();
-		}
-
-		self.push(&self.speaker_buffer[..write]);
-	}
-
-//	#[cfg(feature = "microphone")]
-	/// Pull data from the microphone input.
-	pub fn pull(&self, buffer: &mut [i16]) -> usize {
-		self.microphone.readi(&CONTEXT, buffer).unwrap_or(0)
-	}
-
 	/// Get the number of samples left in the buffer.
-//	#[cfg(feature = "speaker")]
 	fn left(&self) -> i64 {
 		self.speaker.0 - self.speaker.1.status(&CONTEXT).unwrap().get_avail(&CONTEXT)
+	}
+}
+
+pub struct Microphone {
+	pcm: alsa::pcm::PCM, // TODO: call drop(), it isn't being called rn.
+}
+
+impl Microphone {
+	/// Create a new Microphone object.
+	pub fn new(microphone: u16, stereo: bool) -> Option<Self> {
+		if microphone != 0 { return None }
+
+		let pcm = alsa::pcm::PCM::new(&CONTEXT, "plughw:0,0",
+			alsa::Direction::Capture).unwrap();
+		set_settings(&pcm, stereo);
+		{
+			let hwp = pcm.hw_params_current(&CONTEXT).unwrap();
+			println!("CC: {}", hwp.get_channels(&CONTEXT).unwrap());
+			println!("CR: {}", hwp.get_rate(&CONTEXT).unwrap());
+			hwp.drop(&CONTEXT);
+		}
+
+		pcm.start(&CONTEXT);
+
+		Some(Self { pcm })
+	}
+
+	/// Get the number of connected microphones.
+	pub fn num(&self) -> u16 {
+		1
+	}
+
+	/// Pull data from the microphone input.
+	pub fn update(&self, buffer: &mut [i16]) -> usize {
+		self.pcm.readi(&CONTEXT, buffer).unwrap_or(0)
 	}
 }
