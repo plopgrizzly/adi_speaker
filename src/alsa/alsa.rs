@@ -7,19 +7,18 @@ pub(crate) enum snd_pcm_status_t { }
 pub(crate) enum snd_pcm_t { }
 pub(crate) enum snd_pcm_hw_params_t { }
 
-pub(crate) type snd_pcm_uframes_t = c_ulong;
 pub(crate) type snd_pcm_sframes_t = c_long;
 pub(crate) type snd_pcm_format_t = c_int;
 pub(crate) type snd_pcm_access_t = c_uint;
 pub(crate) type snd_pcm_stream_t = c_uint;
 
 pub(crate) struct Context {
-	pub(crate) snd_pcm_status_get_avail: unsafe extern "C" fn(obj: *const snd_pcm_status_t) -> snd_pcm_uframes_t,
+	pub(crate) snd_pcm_status_get_avail: unsafe extern "C" fn(obj: *const snd_pcm_status_t) -> c_ulong,
 	pub(crate) snd_pcm_status_sizeof: unsafe extern "C" fn() -> size_t,
 	pub(crate) snd_pcm_hw_params_malloc: unsafe extern "C" fn(ptr: *mut *mut snd_pcm_hw_params_t) -> c_int,
 	pub(crate) snd_pcm_hw_params_free: unsafe extern "C" fn(obj: *mut snd_pcm_hw_params_t),
-	pub(crate) snd_pcm_hw_params_get_buffer_size: unsafe extern "C" fn(params: *const snd_pcm_hw_params_t, val: *mut snd_pcm_uframes_t) -> c_int,
-	pub(crate) snd_pcm_hw_params_get_period_size: unsafe extern "C" fn(params: *const snd_pcm_hw_params_t, frames: *mut snd_pcm_uframes_t, dir: *mut c_int) -> c_int,
+	pub(crate) snd_pcm_hw_params_get_buffer_size: unsafe extern "C" fn(params: *const snd_pcm_hw_params_t, val: *mut c_ulong) -> c_int,
+	pub(crate) snd_pcm_hw_params_get_period_size: unsafe extern "C" fn(params: *const snd_pcm_hw_params_t, frames: *mut c_ulong, dir: *mut c_int) -> c_int,
 	pub(crate) snd_pcm_hw_params_set_access: unsafe extern "C" fn(pcm: *mut snd_pcm_t, params: *mut snd_pcm_hw_params_t, _access: snd_pcm_access_t) -> c_int,
 	pub(crate) snd_pcm_hw_params_set_format: unsafe extern "C" fn(pcm: *mut snd_pcm_t, params: *mut snd_pcm_hw_params_t, val: snd_pcm_format_t) -> c_int,
 	pub(crate) snd_pcm_hw_params_get_rate: unsafe extern "C" fn(params: *const snd_pcm_hw_params_t, val: *mut c_uint, dir: *mut c_int) -> c_int,
@@ -27,8 +26,8 @@ pub(crate) struct Context {
 	pub(crate) snd_pcm_hw_params_get_channels: unsafe extern "C" fn(params: *const snd_pcm_hw_params_t, val: *mut c_uint) -> c_int,
 	pub(crate) snd_pcm_hw_params_set_channels: unsafe extern "C" fn(pcm: *mut snd_pcm_t, params: *mut snd_pcm_hw_params_t, val: c_uint) -> c_int,
 	pub(crate) snd_pcm_hw_params_any: unsafe extern "C" fn(pcm: *mut snd_pcm_t, params: *mut snd_pcm_hw_params_t) -> c_int,
-	pub(crate) snd_pcm_writei: unsafe extern "C" fn(pcm: *mut snd_pcm_t, buffer: *const c_void, size: snd_pcm_uframes_t) -> snd_pcm_sframes_t,
-	pub(crate) snd_pcm_readi: unsafe extern "C" fn(pcm: *mut snd_pcm_t, buffer: *mut c_void, size: snd_pcm_uframes_t) -> snd_pcm_sframes_t,
+	pub(crate) snd_pcm_writei: unsafe extern "C" fn(pcm: *mut snd_pcm_t, buffer: *const c_void, size: c_ulong) -> snd_pcm_sframes_t,
+	pub(crate) snd_pcm_readi: unsafe extern "C" fn(pcm: *mut snd_pcm_t, buffer: *mut c_void, size: c_ulong) -> snd_pcm_sframes_t,
 	pub(crate) snd_pcm_close: unsafe extern "C" fn(pcm: *mut snd_pcm_t) -> c_int,
 	pub(crate) snd_pcm_hw_params_current: unsafe extern "C" fn(pcm: *mut snd_pcm_t, params: *mut snd_pcm_hw_params_t) -> c_int,
 	pub(crate) snd_pcm_hw_params: unsafe extern "C" fn(pcm: *mut snd_pcm_t, params: *mut snd_pcm_hw_params_t) -> c_int,

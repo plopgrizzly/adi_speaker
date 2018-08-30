@@ -38,7 +38,7 @@ fn set_settings(pcm: &alsa::pcm::PCM, stereo: bool) {
 }
 
 pub struct Speaker {
-	speaker: (i64, alsa::pcm::PCM),
+	speaker: (usize, alsa::pcm::PCM),
 	speaker_buffer: Vec<i16>,
 }
 
@@ -116,7 +116,7 @@ impl Speaker {
 	}
 
 	/// Get the number of samples left in the buffer.
-	fn left(&self) -> i64 {
+	fn left(&self) -> usize {
 		self.speaker.0 - self.speaker.1.status(&CONTEXT).unwrap().get_avail(&CONTEXT)
 	}
 }

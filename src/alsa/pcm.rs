@@ -1,4 +1,4 @@
-use libc::{c_int, c_uint, c_void};
+use libc::{c_int, c_uint, c_void, c_ulong};
 use alsa::alsa;
 use alsa::alsa::Context;
 use std::ffi::{CString};
@@ -63,7 +63,7 @@ impl PCM {
 	/// On success, returns number of *frames* written.
 	/// (Multiply with number of channels to get number of items in buf successfully written.)
 	pub(crate) fn writei(&self, context: &Context, buf: &[i16]) -> Result<usize> {
-		let nsamples = buf.len() as alsa::snd_pcm_uframes_t;
+		let nsamples = buf.len() as c_ulong;
 
 		acheck!(context, snd_pcm_writei(self.0, buf.as_ptr() as *const c_void, nsamples)).map(|r| r as usize)
 	}
@@ -71,7 +71,7 @@ impl PCM {
 	/// On success, returns number of *frames* read.
 	/// (Multiply with number of channels to get number of items in buf successfully read.)
 	pub(crate) fn readi(&self, context: &Context, buf: &mut [i16]) -> Result<usize> {
-		let nsamples = buf.len() as alsa::snd_pcm_uframes_t;
+		let nsamples = buf.len() as c_ulong;
 
 		acheck!(context, snd_pcm_readi(self.0, buf.as_mut_ptr() as *mut c_void, nsamples)).map(|r| r as usize)
 	}
@@ -133,9 +133,9 @@ impl<'a> HwParams<'a> {
 		acheck!(context, snd_pcm_hw_params_get_period_size(self.0, &mut v, &mut d)).map(|_| v as Frames)
 	}
 
-	pub(crate) fn get_buffer_size(&self, context: &Context) -> Result<Frames> {
-		let mut v = 0;
-		acheck!(context, snd_pcm_hw_params_get_buffer_size(self.0, &mut v)).map(|_| v as Frames)
+	pub(crate) fn get_buffer_size(&self, context: &Context) -> Result<usize> {
+		let mut v: c_ulong = 0;
+		acheck!(context, snd_pcm_hw_params_get_buffer_size(self.0, &mut v)).map(|_| v as usize)
 	}
 
 	pub(crate) fn drop(&self, context: &Context) {
@@ -157,9 +157,9 @@ impl Status {
 		self.0.as_ptr() as *const _ as *mut alsa::snd_pcm_status_t
 	}
 
-	pub(crate) fn get_avail(&self, context: &Context) -> Frames {
+	pub(crate) fn get_avail(&self, context: &Context) -> usize {
 		unsafe {
-			(context.snd_pcm_status_get_avail)(self.ptr()) as Frames
+			(context.snd_pcm_status_get_avail)(self.ptr()) as usize
 		}
 	}
 }
