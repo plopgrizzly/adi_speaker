@@ -1,4 +1,4 @@
-# Copyright Jeron Lau 2018.
+# Copyright Jeron Lau 2018-2019.
 # Dual-licensed under either the MIT License or the Boost Software License,
 # Version 1.0.  (See accompanying file LICENSE_1_0.txt or copy at
 # https://www.boost.org/LICENSE_1_0.txt)
@@ -14,18 +14,11 @@
 
 [package]
 name = "adi_speaker"
-version = "0.0.1"
-authors = ["Jeron Lau <jeron.lau@plopgrizzly.com>"]
+version = "0.1.0"
+authors = ["Jeron Aldaron Lau <jeronaldaron@gmail.com>"]
 license = "MIT / BSL-1.0"
-documentation = "https://docs.rs/adi_speaker"
-homepage = "https://gitlab.com/plopgrizzly/adi/"
-repository = "https://github.com/plopgrizzly/adi_speaker"
+documentation = "https://docs.rs/wavy"
+homepage = "https://jeronaldaron.plopgrizzly.com/wavy"
+repository = "https://github.com/OxyDeadbeef/wavy"
 readme = "README.md"
 description = "Play sound through speakers, earbuds or headphones (platform-agnostic)."
-keywords = ["audio", "speaker", "alsa", "hardware", "player"]
-categories = ["hardware-support", "multimedia", "multimedia::audio"]
-
-[dependencies]
-libc = "0.2"
-nix = "0.9"
-lazy_static = "1.1.0"
